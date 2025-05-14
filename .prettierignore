@@ -1,0 +1,4 @@
+# .prettierignore
+
+# Ignore Supabase migration files as they are managed by Supabase CLI
+supabase/migrations/
