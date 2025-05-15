@@ -1,130 +1,146 @@
+// src/components/domain/ResultDisplay.tsx
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { Box, Text, Heading, VStack, List, Icon } from "@chakra-ui/react";
-import { useEffect } from "react"; // useEffect をインポート
-import { MdCheckCircle } from "react-icons/md";
+import { useEffect } from "react";
+import clsx from "clsx";
+import {
+  ArrowRightIcon,
+  TrainFrontIcon,
+  MapIcon,
+  MapPinHouse,
+} from "lucide-react";
 
-// Jotai の選択アトムと結果アトムをインポート
 import {
   selectedRouteIdAtom,
   selectedDirectionIdAtom,
   selectedBoardingPositionIdAtom,
-  resultInfoAtom, // 結果情報を格納するアトム
+  resultInfoAtom,
+  isResultLoadingAtom,
+  isAllSelectedAtom,
 } from "@/states/atoms";
 
-// データ取得関数と型をインポート
 import { fetchResultMapping } from "@/utils/supabase";
 
+const getTransferLineBulletColor = (lineName: string) => {
+  if (lineName.includes("JR線")) return "bg-orange-600";
+  if (lineName.includes("名鉄")) return "bg-red-600";
+  return "bg-gray-500";
+};
+
 const ResultDisplay = () => {
-  // Jotai から現在の選択状態を取得
   const selectedRouteId = useAtomValue(selectedRouteIdAtom);
   const selectedDirectionId = useAtomValue(selectedDirectionIdAtom);
   const selectedBoardingPositionId = useAtomValue(
     selectedBoardingPositionIdAtom,
   );
 
-  // Jotai から結果情報アトムの値を取得
   const resultInfo = useAtomValue(resultInfoAtom);
-  // Jotai の結果情報アトムのsetter関数を取得
   const setResultInfo = useSetAtom(resultInfoAtom);
+  const setIsResultLoading = useSetAtom(isResultLoadingAtom);
+  const isAllSelected = useAtomValue(isAllSelectedAtom);
 
   useEffect(() => {
     if (selectedRouteId && selectedDirectionId && selectedBoardingPositionId) {
       console.log("All selections made. Fetching result...");
-      async function getResult() {
-        // resultInfoAtom を一旦クリアすることも検討できます
-        // setResultInfo(null);
 
-        const result = await fetchResultMapping(
-          selectedRouteId!, // ここに ! を追加
-          selectedDirectionId!, // ここに ! を追加
-          selectedBoardingPositionId!, // ここに ! を追加
-        );
-        setResultInfo(result);
+      setIsResultLoading(true);
+      setResultInfo(null);
+
+      async function getResult() {
+        try {
+          const result = await fetchResultMapping(
+            selectedRouteId!,
+            selectedDirectionId!,
+            selectedBoardingPositionId!,
+          );
+          setResultInfo(result);
+        } catch (error) {
+          console.error("Error fetching result:", error);
+          setResultInfo(null);
+        } finally {
+          setIsResultLoading(false);
+        }
       }
 
       getResult();
     } else {
-      console.log("Selections incomplete. Clearing result.");
+      console.log("Selections incomplete. Clearing result and loading state.");
       setResultInfo(null);
+      setIsResultLoading(false);
     }
   }, [
     selectedRouteId,
     selectedDirectionId,
     selectedBoardingPositionId,
     setResultInfo,
+    setIsResultLoading,
+    isAllSelected,
   ]);
 
-  // 結果情報アトムが null でない場合にのみ結果を表示
   if (!resultInfo) {
-    // 結果がまだ取得されていないか、対応するデータがなかった場合の表示
-    return (
-      <Box mt={8}>
-        <Text>路線、方面、乗車位置を選択してください。</Text>
-        {/* 必要に応じて、選択肢が揃った後に「検索中...」などの表示を追加 */}
-        {/* {(selectedRouteId && selectedDirectionId && selectedBoardingPositionId) && <Text>検索中...</Text>} */}
-      </Box>
-    );
+    return null;
   }
 
-  // 結果情報がある場合の表示
   return (
-    <Box
-      mt={8}
-      p={5}
-      borderWidth="1px"
-      borderRadius="md"
-      shadow="sm"
-      width={"50%"}
-    >
-      <Heading as="h2" size="md" mb={4}>
-        降車駅での案内
-      </Heading>
-
-      <VStack align="stretch">
-        {/* 到着エリア */}
+    <div className="bg-white rounded-md shadow-lg">
+      <div className="bg-blue-500 text-white text-lg font-semibold p-4 mb-4 rounded-t-md flex items-center space-x-2">
+        <MapIcon className="h-6 w-6 text-white" />
+        <h2>目的地案内</h2>
+      </div>
+      <div className="p-5 text-gray-800 flex flex-col space-y-4">
         {resultInfo.arrival_area_ja && (
-          <Box>
-            <Text fontWeight="bold">到着エリアの目安:</Text>
-            <Text>{resultInfo.arrival_area_ja}</Text>
-          </Box>
+          <div>
+            <p className="font-bold flex items-center space-x-2">
+              <MapPinHouse className="h-6 w-6 text-blue-600" />
+              <span>到着エリア</span>
+            </p>
+            <p className="list-none p-0 m-0 ml-4">
+              {resultInfo.arrival_area_ja}
+            </p>
+          </div>
         )}
-
-        {/* 最寄り出口 */}
         {resultInfo.closest_exit_ja && (
-          <Box>
-            <Text fontWeight="bold">最寄り出口:</Text>
-            <Text>{resultInfo.closest_exit_ja}</Text>
-          </Box>
+          <div>
+            <p className="font-bold flex items-center space-x-2">
+              <ArrowRightIcon className="h-5 w-5 text-blue-600" />
+              <span>最寄り出口</span>
+            </p>
+            <p className="list-none p-0 m-0 ml-4">
+              {resultInfo.closest_exit_ja}
+            </p>
+          </div>
         )}
-
-        {/* 最寄り乗り換え路線 */}
         {resultInfo.closest_transfer_lines_ja &&
           resultInfo.closest_transfer_lines_ja.length > 0 && (
-            <Box>
-              <Text fontWeight="bold">最寄り乗り換え路線:</Text>
-              {/* List.Root と List.Item を使用 */}
-              <List.Root>
+            <div>
+              <p className="font-bold flex items-center space-x-2">
+                <TrainFrontIcon className="h-6 w-6 text-blue-600" />
+                <span>最寄りの乗り換え路線</span>
+              </p>
+              <ul className="list-none p-0 m-0 ml-8">
                 {resultInfo.closest_transfer_lines_ja.map((line, index) => (
-                  <List.Item key={index}>
-                    <Icon as={MdCheckCircle} color="green.500" mr={2} />
-                    {line}
-                  </List.Item>
+                  <li key={index} className="flex items-center space-x-2">
+                    <span
+                      className={clsx(
+                        "block h-3 w-3 rounded-full",
+                        getTransferLineBulletColor(line),
+                      )}
+                    ></span>
+                    <span>{line}</span>
+                  </li>
                 ))}
-              </List.Root>
-            </Box>
+              </ul>
+            </div>
           )}
-
-        {/* 備考 */}
         {resultInfo.notes_ja && (
-          <Box>
-            <Text fontWeight="bold">備考:</Text>
-            <Text>{resultInfo.notes_ja}</Text>
-          </Box>
+          <div>
+            <p className="font-bold">備考:</p>
+            <p>{resultInfo.notes_ja}</p>
+          </div>
         )}
-      </VStack>
-    </Box>
+      </div>
+    </div>
   );
 };
 

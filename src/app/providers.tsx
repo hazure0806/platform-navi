@@ -1,14 +1,6 @@
-// src/app/providers.tsx
-"use client"; // クライアントコンポーネントであることを宣言
+"use client";
 
-// ChakraProvider および ColorModeProvider 関連のインポート
-import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
-import {
-  ColorModeProvider,
-  type ColorModeProviderProps,
-} from "@/components/ui/color-mode";
-
-// データ取得とJotai関連のインポート
+// データ取得とJotai関連のインポートは維持
 import { useEffect } from "react";
 import { useSetAtom } from "jotai";
 import {
@@ -24,30 +16,35 @@ import {
   boardingPositionsListAtom,
 } from "../states/atoms"; // パスを確認
 
-// Providers コンポーネント自体が ColorModeProviderProps を受け取るようにする
-export function Providers(props: ColorModeProviderProps) {
-  const { children } = props; // children は props から取得
-
-  // Jotai の setter 取得
+export function Providers({ children }: { children: React.ReactNode }) {
+  // Jotai の setter 取得は維持
   const setRoutesList = useSetAtom(routesListAtom);
   const setStationsList = useSetAtom(stationsListAtom);
   const setDirectionsList = useSetAtom(directionsListAtom);
   const setBoardingPositionsList = useSetAtom(boardingPositionsListAtom);
 
-  // データ取得の useEffect
+  // データ取得の useEffect は維持
   useEffect(() => {
+    console.log("Providers useEffect called (Data Fetching)");
     async function loadMasterData() {
+      console.log("Fetching master data...");
       const routes = await fetchRoutes();
+      console.log("Fetched routes:", routes);
       if (routes) setRoutesList(routes);
 
       const stations = await fetchStations();
+      console.log("Fetched stations:", stations);
       if (stations) setStationsList(stations);
 
       const directions = await fetchDirections();
+      console.log("Fetched directions:", directions);
       if (directions) setDirectionsList(directions);
 
       const boardingPositions = await fetchBoardingPositions();
-      if (boardingPositions) setBoardingPositionsList(boardingPositions);
+      console.log("Fetched boarding positions:", boardingPositions);
+      if (boardingPositions) setBoardingPositionsList(boardingPositions); // 修正箇所
+
+      console.log("Master data fetching complete.");
     }
 
     loadMasterData();
@@ -58,9 +55,6 @@ export function Providers(props: ColorModeProviderProps) {
     setBoardingPositionsList,
   ]); // 依存配列
 
-  return (
-    <ChakraProvider value={defaultSystem}>
-      <ColorModeProvider {...props}>{children}</ColorModeProvider>
-    </ChakraProvider>
-  );
+  // 子要素をそのままレンダリングするだけになる
+  return <>{children}</>;
 }

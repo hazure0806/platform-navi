@@ -1,16 +1,19 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
+import { Fragment, useMemo, useEffect } from "react";
 import {
-  Box,
-  Portal,
-  Select as ChakraSelect,
-  createListCollection,
-  Field,
-} from "@chakra-ui/react";
-import { useMemo } from "react"; // useMemo をインポート
+  Combobox,
+  Transition,
+  Label,
+  ComboboxButton,
+  ComboboxOptions,
+  ComboboxOption,
+} from "@headlessui/react";
+import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
+import { CheckIcon } from "@heroicons/react/24/outline";
+import clsx from "clsx";
 
-// 定義したアトムと型をインポート
 import {
   directionsListAtom,
   selectedRouteIdAtom,
@@ -18,111 +21,173 @@ import {
 } from "@/states/atoms";
 import { RouteStationDirection } from "@/types/data";
 
-// directionsListAtom から取得した RouteStationDirection[] を、createListCollection が期待する { label: string, value: string }[] 形式に変換するヘルパー関数
 const formatDirectionsForSelect = (
   directions: RouteStationDirection[],
 ): { label: string; value: string }[] => {
   return directions.map((direction) => ({
-    label: direction.name_ja, // ドロップダウンに表示するテキストは日本語方面名
-    value: direction.id, // 選択された際に値として使うのは方面のID
+    label: direction.name_ja,
+    value: direction.id,
   }));
 };
 
 const DirectionSelect = () => {
-  // Jotai から全ての方面リストを取得
   const allDirections = useAtomValue(directionsListAtom);
-  // Jotai から現在選択されている路線IDを取得
   const selectedRouteId = useAtomValue(selectedRouteIdAtom);
-  // Jotai から選択された方面IDを更新するためのsetter関数を取得
   const setSelectedDirectionId = useSetAtom(selectedDirectionIdAtom);
-  // Jotai から現在選択されている方面IDを取得 (Select.Root に値を設定するために必要)
   const selectedDirectionId = useAtomValue(selectedDirectionIdAtom);
 
-  // 選択された路線IDに基づいて方面リストをフィルタリング
-  // selectedRouteId または allDirections が変更された場合にのみ再計算
   const filteredDirections = useMemo(() => {
     if (!selectedRouteId || !allDirections) {
-      return []; // 路線が選択されていない、またはデータがない場合は空の配列
+      return [];
     }
-    // 全ての方面の中から、現在選択されている路線IDに一致する方面のみを抽出
     return allDirections.filter(
       (direction) => direction.route_id === selectedRouteId,
     );
-  }, [selectedRouteId, allDirections]); // 依存配列として selectedRouteId と allDirections を指定
+  }, [selectedRouteId, allDirections]);
 
-  // フィルタリングされた方面データを createListCollection が使える形式に変換
-  const directionItems = formatDirectionsForSelect(filteredDirections);
+  const directionItems = useMemo(() => {
+    return formatDirectionsForSelect(filteredDirections);
+  }, [filteredDirections]);
 
-  // createListCollection でコレクションを作成
-  const directionsCollection = createListCollection({ items: directionItems });
+  const selectedFrameworkItem = useMemo(() => {
+    return (
+      directionItems.find((item) => item.value === selectedDirectionId) || null
+    );
+  }, [directionItems, selectedDirectionId]);
 
-  // 路線が選択されていない場合、またはフィルタリングの結果、表示できる方面がない場合はドロップダウンを無効にする
   const isDisabled = !selectedRouteId || filteredDirections.length === 0;
 
-  // 方面リストがフィルタリングされた後、現在選択されている方面がフィルタリング結果に含まれていない場合は、選択状態をリセットする
-  // 例えば、路線を変更した際に、以前選択していた方面が新しい路線には存在しない場合など
-  useMemo(() => {
-    // useMemo をトリガーとして利用 (副作用ではないが、依存関係で処理を実行させたい場合に使うテクニック)
-    if (
+  useEffect(() => {
+    const isSelectedDirectionInvalid =
       selectedDirectionId &&
-      !filteredDirections.some((dir) => dir.id === selectedDirectionId)
-    ) {
-      console.log(
-        `Selected direction ${selectedDirectionId} is not in the filtered list. Resetting.`,
-      );
-      setSelectedDirectionId(null); // フィルタリング結果にない場合は選択をリセット
-    }
-  }, [selectedDirectionId, filteredDirections, setSelectedDirectionId]); // 依存配列として selectedDirectionId と filteredDirections を指定
+      !filteredDirections.some((dir) => dir.id === selectedDirectionId);
 
-  // 初回ロード中またはデータが全くない場合のハンドリング
+    if (isSelectedDirectionInvalid) {
+      console.log(
+        `Selected direction ${selectedDirectionId} is not valid for route ${selectedRouteId}. Resetting.`,
+      );
+      setSelectedDirectionId(null);
+    }
+  }, [
+    selectedDirectionId,
+    filteredDirections,
+    selectedRouteId,
+    setSelectedDirectionId,
+  ]);
+
   if (!allDirections) {
-    return <Box>方面データを読み込み中...</Box>; // または null を返すなど
+    return <div className="mb-4">方面データを読み込み中...</div>;
   }
 
   return (
-    // Field.Root を使用
-    <Field.Root id="direction-select" mb={4}>
-      <Field.Label>方面を選択</Field.Label>
-
-      {/* compose/select の実装 */}
-      <ChakraSelect.Root
-        collection={directionsCollection} // 作成したコレクションを使用
-        size="sm" // サイズはお好みで
-        width="320px" // 幅もお好みで
-        disabled={isDisabled} // 無効化の判定結果を渡す
-        // 値の変更をハンドリング
-        onValueChange={(details) => {
-          const selectedId = details.value.length > 0 ? details.value[0] : null;
-          console.log("Selected Direction ID:", selectedId); // デバッグ用ログ
-          setSelectedDirectionId(selectedId); // 選択された値をアトムにセット
+    <div className="mb-4 w-full">
+      <Combobox
+        value={selectedFrameworkItem}
+        onChange={(item: { label: string; value: string } | null) => {
+          console.log("Selected Direction Item:", item);
+          setSelectedDirectionId(item ? item.value : null);
         }}
-        // 現在選択されている値をセット
-        value={selectedDirectionId ? [selectedDirectionId] : undefined}
+        nullable
+        disabled={isDisabled}
       >
-        <ChakraSelect.HiddenSelect />
-        <ChakraSelect.Control>
-          <ChakraSelect.Trigger>
-            <ChakraSelect.ValueText placeholder="方面を選択してください" />
-          </ChakraSelect.Trigger>
-          <ChakraSelect.IndicatorGroup>
-            <ChakraSelect.Indicator />
-          </ChakraSelect.IndicatorGroup>
-        </ChakraSelect.Control>
+        <Label
+          htmlFor="direction-select-button"
+          className="block text-white text-sm font-medium mb-2"
+        >
+          方面を選択
+        </Label>
+        <div className="relative mt-1">
+          <ComboboxButton
+            as="button"
+            id="direction-select-button"
+            className={clsx(
+              `block w-full bg-white/10 backdrop-blur-md border rounded-lg py-3 px-4 appearance-none text-white focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent`,
+              isDisabled
+                ? "border-gray-400/30 opacity-50 cursor-not-allowed"
+                : "border-white/30 cursor-pointer",
+            )}
+          >
+            <span
+              className={clsx(
+                "block truncate",
+                isDisabled ? "text-gray-400" : "text-white",
+                "text-left",
+              )}
+            >
+              {selectedFrameworkItem
+                ? selectedFrameworkItem.label
+                : "方面を選択してください"}
+            </span>
+            <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-white">
+              <ChevronUpDownIcon
+                className="h-5 w-5 text-white"
+                aria-hidden="true"
+              />
+            </span>
+          </ComboboxButton>
 
-        <Portal>
-          <ChakraSelect.Positioner>
-            <ChakraSelect.Content>
-              {directionsCollection.items.map((direction) => (
-                <ChakraSelect.Item item={direction} key={direction.value}>
-                  {direction.label}
-                  <ChakraSelect.ItemIndicator />
-                </ChakraSelect.Item>
-              ))}
-            </ChakraSelect.Content>
-          </ChakraSelect.Positioner>
-        </Portal>
-      </ChakraSelect.Root>
-    </Field.Root> // Field.Root を閉じる
+          <Transition
+            as={Fragment}
+            leave="transition ease-in duration-100"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <ComboboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-slate-600 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+              {directionItems.length === 0 && !allDirections ? (
+                <div className="relative cursor-default select-none py-2 pl-10 pr-4 text-gray-300">
+                  読み込み中...
+                </div>
+              ) : directionItems.length === 0 &&
+                allDirections &&
+                selectedRouteId ? (
+                <div className="relative cursor-default select-none py-2 pl-10 pr-4 text-gray-300">
+                  選択可能な方面がありません
+                </div>
+              ) : (
+                directionItems.map((item) => (
+                  <ComboboxOption
+                    key={item.value}
+                    className={(state) =>
+                      clsx(
+                        "relative cursor-default select-none py-2 pl-10 pr-4",
+                        state.focus
+                          ? "bg-indigo-600 text-white"
+                          : "text-gray-300",
+                      )
+                    }
+                    value={item}
+                  >
+                    {(state) => (
+                      <>
+                        <span
+                          className={clsx(
+                            "block truncate",
+                            state.selected ? "font-medium" : "font-normal",
+                            "text-left",
+                          )}
+                        >
+                          {item.label}
+                        </span>
+                        {state.selected ? (
+                          <span
+                            className={clsx(
+                              "absolute inset-y-0 left-0 flex items-center pl-3",
+                              state.selected ? "text-white" : "text-gray-300",
+                            )}
+                          >
+                            <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                          </span>
+                        ) : null}
+                      </>
+                    )}
+                  </ComboboxOption>
+                ))
+              )}
+            </ComboboxOptions>
+          </Transition>
+        </div>
+      </Combobox>
+    </div>
   );
 };
 

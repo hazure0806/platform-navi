@@ -44,5 +44,11 @@ export const boardingPositionsListAtom = atom<BoardingPosition[]>([]);
 //--- 結果情報のアトム (既存) ---
 export const resultInfoAtom = atom<ResultInfo | null>(null);
 
-// 他にも、UIの状態（例: モーダルが開いているかなど）に応じてアトムを定義できます
-// export const isResultModalOpenAtom = atom(false);
+export const isResultLoadingAtom = atom<boolean>(false);
+
+export const isAllSelectedAtom = atom(
+  (get) =>
+    get(selectedRouteIdAtom) !== null &&
+    get(selectedDirectionIdAtom) !== null &&
+    get(selectedBoardingPositionIdAtom) !== null,
+);

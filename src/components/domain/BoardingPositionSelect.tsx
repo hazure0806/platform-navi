@@ -1,103 +1,151 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
+import { Fragment, useMemo } from "react";
 import {
-  Box,
-  Portal,
-  Select as ChakraSelect,
-  createListCollection,
-  Field,
-} from "@chakra-ui/react";
+  Combobox,
+  Transition,
+  Label,
+  ComboboxButton,
+  ComboboxOptions,
+  ComboboxOption,
+} from "@headlessui/react";
+import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
+import { CheckIcon } from "@heroicons/react/24/outline";
+import clsx from "clsx";
 
-// 定義したアトムと型をインポート
 import {
   boardingPositionsListAtom,
   selectedBoardingPositionIdAtom,
 } from "@/states/atoms";
 import { BoardingPosition } from "@/types/data";
 
-// boardingPositionsListAtom から取得した BoardingPosition[] を、createListCollection が期待する { label: string, value: string }[] 形式に変換するヘルパー関数
 const formatBoardingPositionsForSelect = (
   positions: BoardingPosition[],
 ): { label: string; value: string }[] => {
-  // "order" カラムでソートされている前提で処理します
   return positions.map((position) => ({
-    label: position.name_ja, // ドロップダウンに表示するテキストは日本語名
-    value: position.id, // 選択された際に値として使うのは乗車位置のID
+    label: position.name_ja,
+    value: position.id,
   }));
 };
 
 const BoardingPositionSelect = () => {
-  // Jotai から乗車位置のリストを取得
   const boardingPositions = useAtomValue(boardingPositionsListAtom);
-  // Jotai から選択された乗車位置IDを更新するためのsetter関数を取得
   const setSelectedBoardingPositionId = useSetAtom(
     selectedBoardingPositionIdAtom,
   );
-  // Jotai から現在選択されている乗車位置IDを取得 (Select.Root に値を設定するために必要)
   const selectedBoardingPositionId = useAtomValue(
     selectedBoardingPositionIdAtom,
   );
 
-  // 取得した乗車位置データを createListCollection が使える形式に変換
-  const positionItems = formatBoardingPositionsForSelect(boardingPositions);
+  const positionItems = useMemo(() => {
+    if (!boardingPositions) return [];
+    return formatBoardingPositionsForSelect(boardingPositions);
+  }, [boardingPositions]);
 
-  // createListCollection でコレクションを作成
-  const positionsCollection = createListCollection({ items: positionItems });
+  const selectedFrameworkItem = useMemo(() => {
+    return (
+      positionItems.find((item) => item.value === selectedBoardingPositionId) ||
+      null
+    );
+  }, [positionItems, selectedBoardingPositionId]);
 
-  // データがない場合は表示をスキップまたはローディング表示
   if (!boardingPositions || boardingPositions.length === 0) {
-    return <Box>乗車位置データを読み込み中...</Box>; // または null を返す
+    return <div className="mb-4">乗車位置データを読み込み中...</div>;
   }
 
   return (
-    // Field.Root を使用
-    <Field.Root id="boarding-position-select" mb={4}>
-      <Field.Label>乗車位置を選択</Field.Label>
-
-      {/* compose/select の実装 */}
-      <ChakraSelect.Root
-        collection={positionsCollection} // 作成したコレクションを使用
-        size="sm" // サイズはお好みで
-        width="320px" // 幅もお好みで
-        // 乗車位置の選択は他の選択に依存しないため、基本的には常に有効
-        // isDisabled={...}
-
-        // 値の変更をハンドリング
-        onValueChange={(details) => {
-          const selectedId = details.value.length > 0 ? details.value[0] : null;
-          console.log("Selected Boarding Position ID:", selectedId); // デバッグ用ログ
-          setSelectedBoardingPositionId(selectedId); // 選択された値をアトムにセット
+    <div className="mb-4 w-full">
+      <Combobox
+        value={selectedFrameworkItem}
+        onChange={(item: { label: string; value: string } | null) => {
+          console.log("Selected Boarding Position Item:", item);
+          setSelectedBoardingPositionId(item ? item.value : null);
         }}
-        // 現在選択されている値をセット
-        value={
-          selectedBoardingPositionId ? [selectedBoardingPositionId] : undefined
-        }
       >
-        <ChakraSelect.HiddenSelect />
-        <ChakraSelect.Control>
-          <ChakraSelect.Trigger>
-            <ChakraSelect.ValueText placeholder="乗車位置を選択してください" />
-          </ChakraSelect.Trigger>
-          <ChakraSelect.IndicatorGroup>
-            <ChakraSelect.Indicator />
-          </ChakraSelect.IndicatorGroup>
-        </ChakraSelect.Control>
+        <Label
+          htmlFor="boarding-position-select-button"
+          className="block text-white text-sm font-medium mb-2"
+        >
+          乗車位置を選択
+        </Label>
+        <div className="relative mt-1">
+          <ComboboxButton
+            as="button"
+            id="boarding-position-select-button"
+            className={clsx(
+              `block w-full bg-white/10 backdrop-blur-md border rounded-lg py-3 px-4 appearance-none text-white focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent border-white/30 cursor-pointer`,
+            )}
+          >
+            <span className={clsx("block truncate", "text-white", "text-left")}>
+              {selectedFrameworkItem
+                ? selectedFrameworkItem.label
+                : "乗車位置を選択してください"}
+            </span>
+            <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-white">
+              <ChevronUpDownIcon
+                className="h-5 w-5 text-white"
+                aria-hidden="true"
+              />
+            </span>
+          </ComboboxButton>
 
-        <Portal>
-          <ChakraSelect.Positioner>
-            <ChakraSelect.Content>
-              {positionsCollection.items.map((position) => (
-                <ChakraSelect.Item item={position} key={position.value}>
-                  {position.label}
-                  <ChakraSelect.ItemIndicator />
-                </ChakraSelect.Item>
-              ))}
-            </ChakraSelect.Content>
-          </ChakraSelect.Positioner>
-        </Portal>
-      </ChakraSelect.Root>
-    </Field.Root> // Field.Root を閉じる
+          <Transition
+            as={Fragment}
+            leave="transition ease-in duration-100"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <ComboboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-slate-600 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+              {positionItems.length === 0 ? (
+                <div className="relative cursor-default select-none py-2 pl-10 pr-4 text-gray-300">
+                  データがありません
+                </div>
+              ) : (
+                positionItems.map((item) => (
+                  <ComboboxOption
+                    key={item.value}
+                    className={(state) =>
+                      clsx(
+                        "relative cursor-default select-none py-2 pl-10 pr-4",
+                        state.focus
+                          ? "bg-indigo-600 text-white"
+                          : "text-gray-300",
+                      )
+                    }
+                    value={item}
+                  >
+                    {(state) => (
+                      <>
+                        <span
+                          className={clsx(
+                            "block truncate",
+                            state.selected ? "font-medium" : "font-normal",
+                            "text-left",
+                          )}
+                        >
+                          {item.label}
+                        </span>
+                        {state.selected ? (
+                          <span
+                            className={clsx(
+                              "absolute inset-y-0 left-0 flex items-center pl-3",
+                              state.selected ? "text-white" : "text-gray-300",
+                            )}
+                          >
+                            <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                          </span>
+                        ) : null}
+                      </>
+                    )}
+                  </ComboboxOption>
+                ))
+              )}
+            </ComboboxOptions>
+          </Transition>
+        </div>
+      </Combobox>
+    </div>
   );
 };
 
