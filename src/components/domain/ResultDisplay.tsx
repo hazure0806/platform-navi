@@ -1,8 +1,6 @@
-// src/components/domain/ResultDisplay.tsx
 "use client";
 
-import { useAtomValue, useSetAtom } from "jotai";
-import { useEffect } from "react";
+import { useAtomValue } from "jotai";
 import clsx from "clsx";
 import {
   ArrowRightIcon,
@@ -11,88 +9,44 @@ import {
   MapPinHouse,
 } from "lucide-react";
 
-import {
-  selectedRouteIdAtom,
-  selectedDirectionIdAtom,
-  selectedBoardingPositionIdAtom,
-  resultInfoAtom,
-  isResultLoadingAtom,
-  isAllSelectedAtom,
-} from "@/states/atoms";
-
-import { fetchResultMapping } from "@/utils/supabase";
+import { resultInfoAtom } from "@/states/atoms";
 
 const getTransferLineBulletColor = (lineName: string) => {
   if (lineName.includes("JR線")) return "bg-orange-600";
   if (lineName.includes("名鉄")) return "bg-red-600";
+  if (lineName.includes("京浜東北線")) return "bg-blue-600";
+  if (lineName.includes("山手線")) return "bg-green-600";
   return "bg-gray-500";
 };
 
+// ResultDisplay は表示ロジックのみに専念
 const ResultDisplay = () => {
-  const selectedRouteId = useAtomValue(selectedRouteIdAtom);
-  const selectedDirectionId = useAtomValue(selectedDirectionIdAtom);
-  const selectedBoardingPositionId = useAtomValue(
-    selectedBoardingPositionIdAtom,
-  );
-
   const resultInfo = useAtomValue(resultInfoAtom);
-  const setResultInfo = useSetAtom(resultInfoAtom);
-  const setIsResultLoading = useSetAtom(isResultLoadingAtom);
-  const isAllSelected = useAtomValue(isAllSelectedAtom);
-
-  useEffect(() => {
-    if (selectedRouteId && selectedDirectionId && selectedBoardingPositionId) {
-      console.log("All selections made. Fetching result...");
-
-      setIsResultLoading(true);
-      setResultInfo(null);
-
-      async function getResult() {
-        try {
-          const result = await fetchResultMapping(
-            selectedRouteId!,
-            selectedDirectionId!,
-            selectedBoardingPositionId!,
-          );
-          setResultInfo(result);
-        } catch (error) {
-          console.error("Error fetching result:", error);
-          setResultInfo(null);
-        } finally {
-          setIsResultLoading(false);
-        }
-      }
-
-      getResult();
-    } else {
-      console.log("Selections incomplete. Clearing result and loading state.");
-      setResultInfo(null);
-      setIsResultLoading(false);
-    }
-  }, [
-    selectedRouteId,
-    selectedDirectionId,
-    selectedBoardingPositionId,
-    setResultInfo,
-    setIsResultLoading,
-    isAllSelected,
-  ]);
 
   if (!resultInfo) {
-    return null;
+    return (
+      <div className="bg-white rounded-md shadow-lg p-6 text-center text-gray-800">
+        <p>検索結果がありません</p>
+      </div>
+    );
   }
 
+  // resultInfo が null でない場合、通常の結果表示
   return (
     <div className="bg-white rounded-md shadow-lg">
+      {/* タイトルエリア 「目的地案内」 */}
       <div className="bg-blue-500 text-white text-lg font-semibold p-4 mb-4 rounded-t-md flex items-center space-x-2">
-        <MapIcon className="h-6 w-6 text-white" />
+        <MapIcon className="h-6 w-6 text-white" /> {/* アイコン */}
         <h2>目的地案内</h2>
       </div>
+
+      {/* 結果表示のコンテンツ部分 */}
       <div className="p-5 text-gray-800 flex flex-col space-y-4">
+        {/* 到着エリア */}
         {resultInfo.arrival_area_ja && (
           <div>
             <p className="font-bold flex items-center space-x-2">
-              <MapPinHouse className="h-6 w-6 text-blue-600" />
+              <MapPinHouse className="h-6 w-6 text-blue-600" /> {/* アイコン */}
               <span>到着エリア</span>
             </p>
             <p className="list-none p-0 m-0 ml-4">
@@ -103,7 +57,8 @@ const ResultDisplay = () => {
         {resultInfo.closest_exit_ja && (
           <div>
             <p className="font-bold flex items-center space-x-2">
-              <ArrowRightIcon className="h-5 w-5 text-blue-600" />
+              <ArrowRightIcon className="h-5 w-5 text-blue-600" />{" "}
+              {/* アイコン */}
               <span>最寄り出口</span>
             </p>
             <p className="list-none p-0 m-0 ml-4">
@@ -111,11 +66,13 @@ const ResultDisplay = () => {
             </p>
           </div>
         )}
+        {/* 最寄り乗り換え路線 */}
         {resultInfo.closest_transfer_lines_ja &&
           resultInfo.closest_transfer_lines_ja.length > 0 && (
             <div>
               <p className="font-bold flex items-center space-x-2">
-                <TrainFrontIcon className="h-6 w-6 text-blue-600" />
+                <TrainFrontIcon className="h-6 w-6 text-blue-600" />{" "}
+                {/* アイコン */}
                 <span>最寄りの乗り換え路線</span>
               </p>
               <ul className="list-none p-0 m-0 ml-8">
