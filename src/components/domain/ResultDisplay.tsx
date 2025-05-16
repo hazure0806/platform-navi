@@ -36,7 +36,7 @@ const ResultDisplay = () => {
     <div className="bg-white rounded-md shadow-lg">
       {/* タイトルエリア 「目的地案内」 */}
       <div className="bg-blue-500 text-white text-lg font-semibold p-4 mb-4 rounded-t-md flex items-center space-x-2">
-        <MapIcon className="h-6 w-6 text-white" /> {/* アイコン */}
+        <MapIcon className="h-6 w-6 text-white" />
         <h2>目的地案内</h2>
       </div>
 
@@ -46,7 +46,7 @@ const ResultDisplay = () => {
         {resultInfo.arrival_area_ja && (
           <div>
             <p className="font-bold flex items-center space-x-2">
-              <MapPinHouse className="h-6 w-6 text-blue-600" /> {/* アイコン */}
+              <MapPinHouse className="h-6 w-6 text-blue-600" />
               <span>到着エリア</span>
             </p>
             <p className="list-none p-0 m-0 ml-4">
@@ -58,7 +58,6 @@ const ResultDisplay = () => {
           <div>
             <p className="font-bold flex items-center space-x-2">
               <ArrowRightIcon className="h-5 w-5 text-blue-600" />{" "}
-              {/* アイコン */}
               <span>最寄り出口</span>
             </p>
             <p className="list-none p-0 m-0 ml-4">
@@ -72,7 +71,6 @@ const ResultDisplay = () => {
             <div>
               <p className="font-bold flex items-center space-x-2">
                 <TrainFrontIcon className="h-6 w-6 text-blue-600" />{" "}
-                {/* アイコン */}
                 <span>最寄りの乗り換え路線</span>
               </p>
               <ul className="list-none p-0 m-0 ml-8">
